@@ -1,6 +1,36 @@
 import tensorflow as tf
 
 
+class Dense(tf.keras.layers.Layer):
+    def __init__(self, units=256, initializer='glorot_uniform', activation='relu'):
+        super().__init__()
+        self.units = units
+        self.initializer = initializer
+        self.activation = activation
+
+    def build(self, input_shape):
+        self.w = self.add_weight(
+            shape=(input_shape[-1], self.units),
+            initializer=self.initializer,
+            trainable=True,
+            dtype=self.dtype
+        )
+
+        self.b = self.add_weight(
+            shape=(self.units,),
+            initializer=self.initializer,
+            trainable=True,
+            dtype=self.dtype
+        )
+
+    def call(self, inputs, training=True, **kwargs):
+        z = tf.matmul(inputs, self.w) + self.b
+        a = tf.nn.relu(z)
+        if training:
+            a = tf.nn.dropout(a, rate=0.5)
+        return a
+
+
 class Conv2d(tf.keras.layers.Layer):
     def __init__(self,
                  kernel_size,
@@ -20,13 +50,15 @@ class Conv2d(tf.keras.layers.Layer):
         self.kernel = self.add_weight(
             shape=kernel_size,
             initializer=self.initializer,
-            trainable=True
+            trainable=True,
+            dtype=self.dtype
         )
 
         self.bias = self.add_weight(
             shape=(self.filters,),
             initializer=self.initializer,
-            trainable=True
+            trainable=True,
+            dtype=self.dtype
         )
 
     def call(self, inputs, **kwargs):
@@ -49,10 +81,11 @@ class AlexNet(tf.keras.layers.Layer):
         self.conv3 = Conv2d(kernel_size=(3, 3), filters=384, strides=1)
         self.conv4 = Conv2d(kernel_size=(3, 3), filters=384, strides=1)
         self.conv5 = Conv2d(kernel_size=(3, 3), filters=256, strides=1)
+        self.dense1 = tf.keras.layers.Dense(units=2048, activation='relu')
 
     def call(self, inputs, **kwargs):
         a = self.conv1(inputs)
-        a = tf.nn.max_pool(input=a, ksize=(3, 3), strides=2, padding='VALID')
+        # a = tf.nn.max_pool(input=a, ksize=(3, 3), strides=2, padding='VALID')
         return a
 
 
