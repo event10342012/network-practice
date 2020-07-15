@@ -1,5 +1,5 @@
 import tensorflow as tf
-from src.tf.linear import Linear
+from tf.linear import Linear
 
 
 (x_train, y_train), _ = tf.keras.datasets.mnist.load_data()

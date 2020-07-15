@@ -108,10 +108,42 @@ class AlexNet(tf.keras.Model):
 
 
 if __name__ == '__main__':
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
-    x_train = x_train / 255
-    x_test = x_test / 255
 
+    epochs = 10
+
+    # load data
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
+    x_train = x_train.reshape((-1, 28, 28, 1)) / 255
+    x_test = x_test.reshape((-1, 28, 28, 1)) / 255
+
+    train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(1000).batch(128)
+    test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(128)
+
+    # instantiate model
     model = AlexNet()
-    model.compile(optimizer='adam', loss='SparseCategoricalCrossentropy', metrics=['accuracy'])
-    model.fit(x_train, y_train, batch_size=128, epochs=10, validation_data=(x_test, y_test))
+
+    # instantiate loss object
+    loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
+
+    # instantiate optimizer
+    optimizer = tf.keras.optimizers.Adam()
+
+    accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
+    loss_result = tf.keras.metrics.Mean(name='loss')
+
+    for epoch in range(epochs):
+        for (images, labels) in train_ds:
+            # start training
+            with tf.GradientTape() as tape:
+                predictions = model(images)
+                loss = loss_object(labels, predictions)
+
+            gradients = tape.gradient(loss, model.trainable_variables)
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+        for (images, labels) in test_ds:
+            predictions = model(images)
+            loss = loss_object(labels, predictions)
+            accuracy(labels, predictions)
+            loss_result(loss)
+        print(f'Step:{epoch} Loss: {loss_result.result() * 100}  Accuracy: {accuracy.result() * 100}')
