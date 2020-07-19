@@ -31,7 +31,7 @@ class FullyConnected(tf.keras.layers.Layer):
 
 
 class Softmax(FullyConnected):
-    def call(self, inputs, training=False, **kwargs):
+    def call(self, inputs, **kwargs):
         z = tf.matmul(inputs, self.w) + self.b
         return tf.nn.softmax(z)
 
@@ -87,14 +87,14 @@ class AlexNet(tf.keras.Model):
         self.conv4 = Conv2d(kernel_size=(3, 3), filters=384, strides=1, padding='SAME')
         self.conv5 = Conv2d(kernel_size=(3, 3), filters=256, strides=1, padding='SAME')
         self.flatten = tf.keras.layers.Flatten()
-        self.dense1 = FullyConnected()
-        self.dense2 = FullyConnected()
+        self.fc1 = FullyConnected()
+        self.fc2 = FullyConnected()
         self.softmax = Softmax(units=10)
 
     def call(self, inputs, training=False, **kwargs):
         a = self.conv1(inputs)
         a = tf.nn.max_pool(a, ksize=(3, 3), strides=2, padding='VALID')
-        a = tf.nn.lrn(a, alpha=10**-4, beta=0.75)
+        a = tf.nn.lrn(a, alpha=10 ** -4, beta=0.75)
         a = self.conv2(a)
         a = tf.nn.max_pool(a, ksize=(2, 2), strides=2, padding='VALID')
         a = tf.nn.lrn(a, alpha=10 ** -4, beta=0.75)
@@ -103,15 +103,34 @@ class AlexNet(tf.keras.Model):
         a = self.conv5(a)
         a = tf.nn.max_pool(a, ksize=(3, 3), strides=2, padding='VALID')
         a = self.flatten(a)
-        a = self.dense1(a)
-        a = self.dense2(a)
+        a = self.fc1(a, training=training)
+        a = self.fc2(a, training=training)
         a = self.softmax(a)
         return a
 
 
-if __name__ == '__main__':
-    epochs = 10
+@tf.function
+def train_step(images, labels):
+    with tf.GradientTape() as tape:
+        predictions = model(images, training=True)
+        loss = loss_object(labels, predictions)
+    gradients = tape.gradient(loss, model.trainable_variables)
+    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
+    train_loss(loss)
+    train_accuracy(labels, predictions)
+
+
+@tf.function
+def test_step(images, labels):
+    predictions = model(images)
+    loss = loss_object(labels, predictions)
+
+    test_loss(loss)
+    test_accuracy(labels, predictions)
+
+
+if __name__ == '__main__':
     # load data
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
     x_train = x_train.reshape((-1, 28, 28, 1)) / 255
@@ -129,15 +148,29 @@ if __name__ == '__main__':
     # instantiate optimizer
     optimizer = tf.keras.optimizers.Adam()
 
-    accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='accuracy')
-    loss_result = tf.keras.metrics.Mean(name='loss')
+    train_loss = tf.keras.metrics.Mean(name='train_loss')
+    train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
 
+    test_loss = tf.keras.metrics.Mean(name='test_loss')
+    test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+
+    # start training
+    epochs = 10
     for epoch in range(epochs):
-        for (images, labels) in train_ds:
-            # start training
-            with tf.GradientTape() as tape:
-                predictions = model(images)
-                loss = loss_object(labels, predictions)
+        train_loss.reset_states()
+        train_accuracy.reset_states()
+        test_loss.reset_states()
+        test_accuracy.reset_states()
 
-            gradients = tape.gradient(loss, model.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        for (images, labels) in train_ds:
+            train_step(images, labels)
+
+        for (images, labels) in test_ds:
+            test_step(images, labels)
+
+        template = 'Epoch {}, Loss: {}, Accuracy: {}, Test Loss: {}, Test Accuracy: {}'
+        print(template.format(epoch + 1,
+                              train_loss.result() * 100,
+                              train_accuracy.result() * 100,
+                              test_loss.result() * 100,
+                              test_accuracy.result() * 100))
