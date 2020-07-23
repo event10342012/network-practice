@@ -20,7 +20,7 @@ train_image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=
     class_mode='categorical'
 )
 
-val_image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1/255).flow_from_directory(
+val_image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1 / 255).flow_from_directory(
     val_dir,
     target_size=(img_width, img_height),
     color_mode='rgb',
@@ -28,4 +28,3 @@ val_image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1/
     shuffle=True,
     class_mode='categorical'
 )
-
