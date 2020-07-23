@@ -1,15 +1,31 @@
 import os
-import cv2
 
+import tensorflow as tf
 
 root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-data_dir = os.path.join(root, 'data')
-data_name = 'chest_xray'
+data_name = 'fruits-360'
+data_dir = os.path.join(root, 'data', data_name)
+train_dir = os.path.join(data_dir, 'Training')
+val_dir = os.path.join(data_dir, 'Test')
 
-train_dir = os.path.join(data_dir, data_name, 'train')
-val_dir = os.path.join(data_dir, data_name, 'val')
-test_dir = os.path.join(data_dir, data_name, 'test')
+img_width = 100
+img_height = 100
 
-img_path = os.path.join(train_dir, 'NORMAL', 'IM-0115-0001.jpeg')
-img = cv2.imread(img_path)
+train_image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1 / 255).flow_from_directory(
+    train_dir,
+    target_size=(img_width, img_height),
+    color_mode='rgb',
+    batch_size=32,
+    shuffle=True,
+    class_mode='categorical'
+)
+
+val_image_generator = tf.keras.preprocessing.image.ImageDataGenerator(rescale=1/255).flow_from_directory(
+    val_dir,
+    target_size=(img_width, img_height),
+    color_mode='rgb',
+    batch_size=128,
+    shuffle=True,
+    class_mode='categorical'
+)
 
