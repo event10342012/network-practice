@@ -1,6 +1,6 @@
 import tensorflow as tf
-from linear import Linear
 
+from linear import Linear
 
 (x_train, y_train), _ = tf.keras.datasets.mnist.load_data()
 dataset = tf.data.Dataset.from_tensor_slices(
