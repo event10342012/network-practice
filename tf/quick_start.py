@@ -1,4 +1,4 @@
-# practice.py
+# quick_start.py
 
 import warnings
 
