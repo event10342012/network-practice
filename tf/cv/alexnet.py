@@ -1,9 +1,12 @@
 import os
 
 import tensorflow as tf
+from tensorflow.keras.preprocessing import image_dataset_from_directory
 
 
 class FullyConnected(tf.keras.layers.Layer):
+    count = 1
+
     def __init__(self, units=256, initializer='glorot_uniform'):
         super().__init__()
         self.units = units
@@ -14,14 +17,16 @@ class FullyConnected(tf.keras.layers.Layer):
             shape=(input_shape[-1], self.units),
             initializer=self.initializer,
             trainable=True,
-            dtype=self.dtype
+            dtype=self.dtype,
+            name=f'fc_weight{self.count}'
         )
 
         self.b = self.add_weight(
             shape=(self.units,),
             initializer=self.initializer,
             trainable=True,
-            dtype=self.dtype
+            dtype=self.dtype,
+            name=f'fc_bias_{self.count}'
         )
 
     def call(self, inputs, training=False, **kwargs):
@@ -39,6 +44,8 @@ class Softmax(FullyConnected):
 
 
 class Conv2d(tf.keras.layers.Layer):
+    count = 1
+
     def __init__(self,
                  kernel_size,
                  filters,
@@ -58,14 +65,16 @@ class Conv2d(tf.keras.layers.Layer):
             shape=kernel_size,
             initializer=self.initializer,
             trainable=True,
-            dtype=self.dtype
+            dtype=self.dtype,
+            name=f'conv_weight_{self.count}'
         )
 
         self.bias = self.add_weight(
             shape=(self.filters,),
             initializer=self.initializer,
             trainable=True,
-            dtype=self.dtype
+            dtype=self.dtype,
+            name=f'conv_bias_{self.count}'
         )
 
     def call(self, inputs, **kwargs):
@@ -83,6 +92,7 @@ class Conv2d(tf.keras.layers.Layer):
 class AlexNet(tf.keras.Model):
     def __init__(self):
         super(AlexNet, self).__init__()
+        self.normalization_layer = tf.keras.layers.experimental.preprocessing.Rescaling(1. / 255)
         self.conv1 = Conv2d(kernel_size=(11, 11), filters=96, strides=4, padding='VALID')
         self.conv2 = Conv2d(kernel_size=(5, 5), filters=256, strides=1, padding='SAME')
         self.conv3 = Conv2d(kernel_size=(3, 3), filters=384, strides=1, padding='SAME')
@@ -91,10 +101,11 @@ class AlexNet(tf.keras.Model):
         self.flatten = tf.keras.layers.Flatten()
         self.fc1 = FullyConnected()
         self.fc2 = FullyConnected()
-        self.softmax = Softmax(units=10)
+        self.softmax = Softmax(units=2)
 
     def call(self, inputs, training=False, **kwargs):
-        a = self.conv1(inputs)
+        a = self.normalization_layer(inputs)
+        a = self.conv1(a)
         a = tf.nn.max_pool(a, ksize=(3, 3), strides=2, padding='VALID')
         a = tf.nn.lrn(a, alpha=10 ** -4, beta=0.75)
         a = self.conv2(a)
@@ -133,13 +144,23 @@ def test_step(images, labels):
 
 
 if __name__ == '__main__':
-    root = os.path.dirname(os.path.dirname(__file__))
-    train_dir = os.path.join(root, 'data', 'train')
-    test_dir = os.path.join(root, 'data', 'test')
+    data_name = 'dogs_vs_cats'
+    epochs = 10
+    batch_size = 32
+    image_size = (256, 256)
+
+    root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    data_dir = os.path.join(root, 'data', data_name)
+    train_dir = os.path.join(data_dir, 'train')
+    test_dir = os.path.join(data_dir, 'test')
 
     # load data
-    train_ds = tf.keras.preprocessing.image_dataset_from_directory(train_dir)
-    test_ds = tf.keras.preprocessing.image_dataset_from_directory(test_dir)
+    train_ds = image_dataset_from_directory(train_dir,
+                                            image_size=image_size,
+                                            batch_size=batch_size)
+    test_ds = image_dataset_from_directory(test_dir,
+                                           image_size=image_size,
+                                           batch_size=batch_size)
 
     # instantiate model
     model = AlexNet()
@@ -157,15 +178,20 @@ if __name__ == '__main__':
     test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
 
     # start training
-    epochs = 10
     for epoch in range(epochs):
         train_loss.reset_states()
         train_accuracy.reset_states()
         test_loss.reset_states()
         test_accuracy.reset_states()
 
-        for (images, labels) in train_ds:
+        for step, (images, labels) in enumerate(train_ds):
             train_step(images, labels)
+            if step % 100 == 0:
+                template = 'Epoch: {}, Step {}, Loss: {}, Accuracy: {}'
+                print(template.format(epoch + 1,
+                                      step,
+                                      train_loss.result() * 100,
+                                      train_accuracy.result() * 100))
 
         for (images, labels) in test_ds:
             test_step(images, labels)
