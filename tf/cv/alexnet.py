@@ -1,3 +1,5 @@
+import os
+
 import tensorflow as tf
 
 
@@ -131,13 +133,13 @@ def test_step(images, labels):
 
 
 if __name__ == '__main__':
-    # load data
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
-    x_train = x_train.reshape((-1, 28, 28, 1)) / 255
-    x_test = x_test.reshape((-1, 28, 28, 1)) / 255
+    root = os.path.dirname(os.path.dirname(__file__))
+    train_dir = os.path.join(root, 'data', 'train')
+    test_dir = os.path.join(root, 'data', 'test')
 
-    train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(1000).batch(128)
-    test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(128)
+    # load data
+    train_ds = tf.keras.preprocessing.image_dataset_from_directory(train_dir)
+    test_ds = tf.keras.preprocessing.image_dataset_from_directory(test_dir)
 
     # instantiate model
     model = AlexNet()
