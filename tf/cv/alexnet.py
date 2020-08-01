@@ -5,8 +5,6 @@ from tensorflow.keras.preprocessing import image_dataset_from_directory
 
 
 class FullyConnected(tf.keras.layers.Layer):
-    count = 1
-
     def __init__(self, units=256, initializer='glorot_uniform'):
         super().__init__()
         self.units = units
@@ -17,16 +15,14 @@ class FullyConnected(tf.keras.layers.Layer):
             shape=(input_shape[-1], self.units),
             initializer=self.initializer,
             trainable=True,
-            dtype=self.dtype,
-            name=f'fc_weight{self.count}'
+            dtype=self.dtype
         )
 
         self.b = self.add_weight(
             shape=(self.units,),
             initializer=self.initializer,
             trainable=True,
-            dtype=self.dtype,
-            name=f'fc_bias_{self.count}'
+            dtype=self.dtype
         )
 
     def call(self, inputs, training=False, **kwargs):
@@ -44,8 +40,6 @@ class Softmax(FullyConnected):
 
 
 class Conv2d(tf.keras.layers.Layer):
-    count = 1
-
     def __init__(self,
                  kernel_size,
                  filters,
@@ -65,16 +59,14 @@ class Conv2d(tf.keras.layers.Layer):
             shape=kernel_size,
             initializer=self.initializer,
             trainable=True,
-            dtype=self.dtype,
-            name=f'conv_weight_{self.count}'
+            dtype=self.dtype
         )
 
         self.bias = self.add_weight(
             shape=(self.filters,),
             initializer=self.initializer,
             trainable=True,
-            dtype=self.dtype,
-            name=f'conv_bias_{self.count}'
+            dtype=self.dtype
         )
 
     def call(self, inputs, **kwargs):
@@ -202,3 +194,5 @@ if __name__ == '__main__':
                               train_accuracy.result() * 100,
                               test_loss.result() * 100,
                               test_accuracy.result() * 100))
+
+    model.save(filepath=os.path.join(root, 'ckpt', 'alexnet'))
